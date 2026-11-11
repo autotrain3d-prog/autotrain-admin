@@ -1,0 +1,17 @@
+{
+  "name": "autotrain-admin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --port 3001",
+    "build": "nuxt build",
+    "preview": "nuxt preview --port 3001",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "@vercel/blob": "^0.27.3",
+    "nuxt": "^3.15.0",
+    "vue": "latest"
+  }
+}
