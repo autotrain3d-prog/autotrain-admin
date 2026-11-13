@@ -1,5 +1,5 @@
+// Who is signed in? (null when nobody)
 import { defineEventHandler } from 'h3'
-import { currentAdmin } from '../../utils/auth.js'
+import { currentAdmin, publicAdmin } from '../../utils/admin-auth.js'
 
-// who is signed in (null when nobody is). It never throws, so the page can just ask.
-export default defineEventHandler(async event => ({ admin: await currentAdmin(event) }))
+export default defineEventHandler(async event => ({ user: publicAdmin(await currentAdmin(event)) || null }))

@@ -1,27 +1,21 @@
-import { createError, defineEventHandler, readBody } from 'h3'
-import { getDb } from '../../utils/db.js'
-import { rateLimit, rateReset, verifyPassword } from '../../utils/security.js'
-import { clientIp, startSession } from '../../utils/auth.js'
+// Admin sign in: the account comes from the admins table (not from the students).
+import { defineEventHandler } from 'h3'
+import { clientIp, fail, findAdmin, normEmail, publicAdmin, rateLimit, rateReset, readJson, startAdminSession, verifyPassword } from '../../utils/admin-auth.js'
 
 export default defineEventHandler(async event => {
-  const body = await readBody(event).catch(() => ({})) || {}
-  const email = String(body.email || '').trim().toLowerCase()
-  const password = String(body.password || '')
-  if (!email || !password) throw createError({ statusCode: 400, statusMessage: 'Enter the email and the password.' })
+  const b = await readJson(event)
+  const email = normEmail(b.email)
+  const password = String(b.password || '')
+  const key = `admin-login:${clientIp(event)}:${email}`
 
-  // at most 6 tries in 15 minutes for one address, and 20 for one computer
-  const keyEmail = 'login:' + email, keyIp = 'login-ip:' + clientIp(event)
-  if (!(await rateLimit(keyEmail, 6, 15 * 60 * 1000)) || !(await rateLimit(keyIp, 20, 15 * 60 * 1000))) {
-    throw createError({ statusCode: 429, statusMessage: 'Too many tries. Wait 15 minutes and try again.' })
-  }
+  if (!email || !password) throw fail(400, 'Enter your email and password.')
+  if (!await rateLimit(key, 6, 10 * 60 * 1000)) throw fail(429, 'Too many wrong tries. Wait a few minutes and try again.')
 
-  const db = await getDb()
-  const admin = await db.prepare('SELECT id, name, email, password_hash FROM admins WHERE email = ?').get(email)
-  // the same answer for a wrong email and a wrong password
-  if (!verifyPassword(password, admin?.password_hash) || !admin) throw createError({ statusCode: 401, statusMessage: 'The email or the password is wrong.' })
+  const admin = await findAdmin(email)
+  const ok = verifyPassword(password, admin?.password_hash)     // the time is the same even if the account does not exist
+  if (!admin || !ok) throw fail(401, 'Incorrect email or password.')
 
-  await rateReset(keyEmail)
-  await db.prepare('UPDATE admins SET last_login = ? WHERE id = ?').run(Date.now(), admin.id)
-  await startSession(event, admin.id)
-  return { ok: true, admin: { id: admin.id, name: admin.name, email: admin.email } }
+  await rateReset(key)
+  await startAdminSession(event, admin.id, Boolean(b.remember))
+  return { ok: true, user: publicAdmin(admin) }
 })

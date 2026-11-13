@@ -1,7 +1,7 @@
 import { defineEventHandler } from 'h3'
-import { endSession } from '../../utils/auth.js'
+import { endAdminSession } from '../../utils/admin-auth.js'
 
 export default defineEventHandler(async event => {
-  await endSession(event)
+  await endAdminSession(event)
   return { ok: true }
 })
